@@ -1,6 +1,6 @@
-"use client"
-import React from "react"
-import { useState, useEffect, useRef } from "react"
+"use client";
+import React from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Search,
   Info,
@@ -22,132 +22,174 @@ import {
   Check,
   ArrowRight,
   ArrowLeft,
-} from "lucide-react"
-import { useAppContext } from "../context/AppContext"
-import LoadingSpinner from "../components/LoadingSpinner"
-import * as MapService from "../services/mapService"
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet"
-import "leaflet/dist/leaflet.css"
-import L from "leaflet"
-import { Polyline } from "react-leaflet"
-import { findSafeRoute, type RouteInstructions, formatDistance, formatDuration } from "../services/routingservice"
+} from "lucide-react";
+import { useAppContext } from "../context/AppContext";
+import LoadingSpinner from "../components/LoadingSpinner";
+import * as MapService from "../services/mapService";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Circle,
+  useMap,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { Polyline } from "react-leaflet";
+import {
+  findSafeRoute,
+  type RouteInstructions,
+  formatDistance,
+  formatDuration,
+} from "../services/routingservice";
 
 // Fix for default marker icons in react-leaflet
-import icon from "leaflet/dist/images/marker-icon.png"
-import iconShadow from "leaflet/dist/images/marker-shadow.png"
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import tower from "../../public/images/tower.png";
+import newRoad from "../../public/images/new-road.png";
+import blockedRoad from "../../public/images/p-2.png";
+import shelter from "../../public/images/shelter.png";
+import sjf from "../../public/images/sjf.png";
 
 const DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-})
+});
 
-L.Marker.prototype.options.icon = DefaultIcon
+L.Marker.prototype.options.icon = DefaultIcon;
 
 // Custom icons for blocked roads and shelters
 const blockedRoadIcon = new L.Icon({
-  iconUrl: "/blocked-road.png",
+  iconUrl: blockedRoad,
   iconSize: [32, 32],
   iconAnchor: [16, 16],
-})
+});
 
 const shelterIcon = new L.Icon({
-  iconUrl: "/shelter.png",
+  iconUrl: shelter,
   iconSize: [32, 32],
   iconAnchor: [16, 32],
-})
+});
 
 interface Alert {
-  id: string
-  type: string
-  location: string
-  district: string
-  severity: "Critical" | "High" | "Medium" | "Low"
-  time: string
-  coordinates: [number, number]
-  description: string
+  id: string;
+  type: string;
+  location: string;
+  district: string;
+  severity: "Critical" | "High" | "Medium" | "Low";
+  time: string;
+  coordinates: [number, number];
+  description: string;
 }
 
 interface FloodData {
-  area: string
-  currentWaterLevel: number
-  predictedWaterLevel: number
-  rainfall: number
-  riskLevel: "Critical" | "High" | "Medium" | "Low"
-  safeRoutes: string[]
+  area: string;
+  currentWaterLevel: number;
+  predictedWaterLevel: number;
+  rainfall: number;
+  riskLevel: "Critical" | "High" | "Medium" | "Low";
+  safeRoutes: string[];
   nearbyShelters: {
-    name: string
-    distance: string
-    capacity: string
-    coordinates: [number, number]
-    isOutsideFloodZone: boolean
-  }[]
-  lastUpdated: string
+    name: string;
+    distance: string;
+    capacity: string;
+    coordinates: [number, number];
+    isOutsideFloodZone: boolean;
+  }[];
+  lastUpdated: string;
 }
 
 // Component to update map view when center changes
-function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
-  const map = useMap()
-  map.setView(center, zoom)
-  return null
+function ChangeView({
+  center,
+  zoom,
+}: {
+  center: [number, number];
+  zoom: number;
+}) {
+  const map = useMap();
+  map.setView(center, zoom);
+  return null;
 }
 
 export default function MapView() {
-  const { isLoading, refreshData, mapAlerts, addAlert, userLocation } = useAppContext()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedDistrict, setSelectedDistrict] = useState("All Districts")
-  const [selectedLocality, setSelectedLocality] = useState("All Localities")
-  const [selectedSeverity, setSelectedSeverity] = useState<string[]>(["High", "Critical"])
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [refreshing, setRefreshing] = useState(false)
-  const [showAlertDetails, setShowAlertDetails] = useState<string | null>(null)
-  const [fullScreenMap, setFullScreenMap] = useState(false)
-  const [mapCenter, setMapCenter] = useState<[number, number]>([13.0827, 80.2707]) // Chennai center
-  const [mapZoom, setMapZoom] = useState(12)
-  const [mapType, setMapType] = useState<"street" | "satellite">("street")
-  const [showLayers, setShowLayers] = useState(false)
-  const [showFloodZones, setShowFloodZones] = useState(true)
-  const [showShelters, setShowShelters] = useState(true)
-  const [showRoads, setShowRoads] = useState(true)
-  const [floodZones, setFloodZones] = useState<{ coordinates: [number, number][]; severity: string; name: string }[]>(
-    [],
-  )
+  const { isLoading, refreshData, mapAlerts, addAlert, userLocation } =
+    useAppContext();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("All Districts");
+  const [selectedLocality, setSelectedLocality] = useState("All Localities");
+  const [selectedSeverity, setSelectedSeverity] = useState<string[]>([
+    "High",
+    "Critical",
+  ]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showAlertDetails, setShowAlertDetails] = useState<string | null>(null);
+  const [fullScreenMap, setFullScreenMap] = useState(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([
+    13.0827, 80.2707,
+  ]); // Chennai center
+  const [mapZoom, setMapZoom] = useState(12);
+  const [mapType, setMapType] = useState<"street" | "satellite">("street");
+  const [showLayers, setShowLayers] = useState(false);
+  const [showFloodZones, setShowFloodZones] = useState(true);
+  const [showShelters, setShowShelters] = useState(true);
+  const [showRoads, setShowRoads] = useState(true);
+  const [floodZones, setFloodZones] = useState<
+    { coordinates: [number, number][]; severity: string; name: string }[]
+  >([]);
   const [blockedRoads, setBlockedRoads] = useState<
-    { coordinates: [number, number][]; status: "blocked" | "damaged" | "demolished" }[]
-  >([])
+    {
+      coordinates: [number, number][];
+      status: "blocked" | "damaged" | "demolished";
+    }[]
+  >([]);
   const [sensorLocations, setSensorLocations] = useState<
-    { id: string; coordinates: [number, number]; status: "active" | "warning" | "offline" }[]
-  >([])
-  const [showSensors, setShowSensors] = useState(true)
-  const [showBlockedRoads, setShowBlockedRoads] = useState(true)
-  const [selectedLocation, setSelectedLocation] = useState<FloodData | null>(null)
-  const [floodData, setFloodData] = useState<FloodData[]>([])
-  const [activeRoute, setActiveRoute] = useState<RouteInstructions | null>(null)
-  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false)
-  const [showNavigationPanel, setShowNavigationPanel] = useState(false)
-  const [navigationDestination, setNavigationDestination] = useState<string | null>(null)
-  const mapRef = useRef<L.Map | null>(null)
+    {
+      id: string;
+      coordinates: [number, number];
+      status: "active" | "warning" | "offline";
+    }[]
+  >([]);
+  const [showSensors, setShowSensors] = useState(true);
+  const [showBlockedRoads, setShowBlockedRoads] = useState(true);
+  const [selectedLocation, setSelectedLocation] = useState<FloodData | null>(
+    null
+  );
+  const [floodData, setFloodData] = useState<FloodData[]>([]);
+  const [activeRoute, setActiveRoute] = useState<RouteInstructions | null>(
+    null
+  );
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+  const [showNavigationPanel, setShowNavigationPanel] = useState(false);
+  const [navigationDestination, setNavigationDestination] = useState<
+    string | null
+  >(null);
+  const mapRef = useRef<L.Map | null>(null);
   const [multipleRouteOptions, setMultipleRouteOptions] = useState<{
-    routes: RouteInstructions[]
-    destination: string
-    destinationCoords: [number, number]
-  } | null>(null)
+    routes: RouteInstructions[];
+    destination: string;
+    destinationCoords: [number, number];
+  } | null>(null);
 
   // Set alerts from context
   useEffect(() => {
     if (mapAlerts.length > 0) {
-      setAlerts(mapAlerts)
+      setAlerts(mapAlerts);
     }
-  }, [mapAlerts])
+  }, [mapAlerts]);
 
   // Set user location as map center if available
   useEffect(() => {
     if (userLocation) {
-      setMapCenter([userLocation.lat, userLocation.lng])
-      setMapZoom(12)
+      setMapCenter([userLocation.lat, userLocation.lng]);
+      setMapZoom(12);
     }
-  }, [userLocation])
+  }, [userLocation]);
 
   useEffect(() => {
     // Simulated flood zones data - in a real app, this would come from an API
@@ -296,7 +338,7 @@ export default function MapView() {
         ],
         severity: "Critical",
       },
-    ])
+    ]);
 
     // Simulated blocked roads data
     setBlockedRoads([
@@ -325,8 +367,8 @@ export default function MapView() {
 
       {
         coordinates: [
-           [13.1116, 80.2164],
- // Perambur
+          [13.1116, 80.2164],
+          // Perambur
           [13.1215, 80.24],
         ],
         status: "demolished",
@@ -345,7 +387,7 @@ export default function MapView() {
         ],
         status: "damaged",
       },
-    ])
+    ]);
 
     // Updated sensor locations - only in Chennai areas
     setSensorLocations([
@@ -363,7 +405,7 @@ export default function MapView() {
       { id: "sensor-12", coordinates: [13.1075, 80.152], status: "active" }, // Ambattur
       { id: "sensor-13", coordinates: [12.9138, 80.0709], status: "warning" }, // Vandalur
       { id: "sensor-14", coordinates: [12.982, 80.082], status: "active" }, // Porur
-    ])
+    ]);
 
     // Simulated flood data for each area with shelter coordinates
     setFloodData([
@@ -373,7 +415,11 @@ export default function MapView() {
         predictedWaterLevel: 3.2,
         rainfall: 15.7,
         riskLevel: "Critical",
-        safeRoutes: ["Via Poonamallee High Road", "Via Egmore Station Road", "Via EVR Periyar Salai"],
+        safeRoutes: [
+          "Via Poonamallee High Road",
+          "Via Egmore Station Road",
+          "Via EVR Periyar Salai",
+        ],
         nearbyShelters: [
           {
             name: "Government Higher Secondary School",
@@ -405,7 +451,11 @@ export default function MapView() {
         predictedWaterLevel: 2.5,
         rainfall: 12.3,
         riskLevel: "High",
-        safeRoutes: ["Via North Usman Road", "Via Venkatanarayana Road", "Via G.N. Chetty Road"],
+        safeRoutes: [
+          "Via North Usman Road",
+          "Via Venkatanarayana Road",
+          "Via G.N. Chetty Road",
+        ],
         nearbyShelters: [
           {
             name: "T. Nagar Bus Terminus",
@@ -430,7 +480,11 @@ export default function MapView() {
         predictedWaterLevel: 1.8,
         rainfall: 10.2,
         riskLevel: "Medium",
-        safeRoutes: ["Via Velachery Main Road", "Via Taramani Link Road", "Via 100 Feet Bypass Road"],
+        safeRoutes: [
+          "Via Velachery Main Road",
+          "Via Taramani Link Road",
+          "Via 100 Feet Bypass Road",
+        ],
         nearbyShelters: [
           {
             name: "Phoenix Mall Parking Area",
@@ -455,7 +509,11 @@ export default function MapView() {
         predictedWaterLevel: 1.0,
         rainfall: 8.5,
         riskLevel: "Low",
-        safeRoutes: ["Via LB Road", "Via Adyar Bridge", "Via Sardar Patel Road"],
+        safeRoutes: [
+          "Via LB Road",
+          "Via Adyar Bridge",
+          "Via Sardar Patel Road",
+        ],
         nearbyShelters: [
           {
             name: "Adyar Depot Complex",
@@ -480,7 +538,11 @@ export default function MapView() {
         predictedWaterLevel: 1.7,
         rainfall: 9.8,
         riskLevel: "Medium",
-        safeRoutes: ["Via 2nd Avenue", "Via Shanthi Colony", "Via Thirumangalam Road"],
+        safeRoutes: [
+          "Via 2nd Avenue",
+          "Via Shanthi Colony",
+          "Via Thirumangalam Road",
+        ],
         nearbyShelters: [
           {
             name: "Anna Nagar Tower Park",
@@ -505,7 +567,11 @@ export default function MapView() {
         predictedWaterLevel: 2.4,
         rainfall: 13.5,
         riskLevel: "High",
-        safeRoutes: ["Via Arcot Road", "Via Kodambakkam High Road", "Via Power House Road"],
+        safeRoutes: [
+          "Via Arcot Road",
+          "Via Kodambakkam High Road",
+          "Via Power House Road",
+        ],
         nearbyShelters: [
           {
             name: "Kodambakkam Railway Station",
@@ -530,7 +596,11 @@ export default function MapView() {
         predictedWaterLevel: 3.1,
         rainfall: 14.9,
         riskLevel: "Critical",
-        safeRoutes: ["Via Perambur High Road", "Via Paper Mills Road", "Via Stephenson Road"],
+        safeRoutes: [
+          "Via Perambur High Road",
+          "Via Paper Mills Road",
+          "Via Stephenson Road",
+        ],
         nearbyShelters: [
           {
             name: "Perambur Railway Station",
@@ -555,7 +625,11 @@ export default function MapView() {
         predictedWaterLevel: 2.3,
         rainfall: 11.8,
         riskLevel: "High",
-        safeRoutes: ["Via GST Road", "Via Pallavaram-Thoraipakkam Road", "Via Airport Road"],
+        safeRoutes: [
+          "Via GST Road",
+          "Via Pallavaram-Thoraipakkam Road",
+          "Via Airport Road",
+        ],
         nearbyShelters: [
           {
             name: "Pallavaram Bus Terminus",
@@ -749,8 +823,8 @@ export default function MapView() {
         ],
         lastUpdated: "16 minutes ago",
       },
-    ])
-  }, [])
+    ]);
+  }, []);
 
   // Filter alerts based on search, district, and severity
   const filteredAlerts = alerts.filter((alert) => {
@@ -758,181 +832,208 @@ export default function MapView() {
       searchQuery === "" ||
       alert.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       alert.district.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      alert.type.toLowerCase().includes(searchQuery.toLowerCase())
+      alert.type.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesDistrict = selectedDistrict === "All Districts" || alert.district === selectedDistrict
+    const matchesDistrict =
+      selectedDistrict === "All Districts" ||
+      alert.district === selectedDistrict;
 
-    const matchesSeverity = selectedSeverity.includes(alert.severity)
+    const matchesSeverity = selectedSeverity.includes(alert.severity);
 
-    return matchesSearch && matchesDistrict && matchesSeverity
-  })
+    return matchesSearch && matchesDistrict && matchesSeverity;
+  });
 
   const handleRefresh = async () => {
-    setRefreshing(true)
-    await refreshData()
-    setTimeout(() => setRefreshing(false), 1000)
-  }
+    setRefreshing(true);
+    await refreshData();
+    setTimeout(() => setRefreshing(false), 1000);
+  };
 
   const handleSeverityFilter = (severity: string) => {
     if (selectedSeverity.includes(severity)) {
-      setSelectedSeverity(selectedSeverity.filter((s) => s !== severity))
+      setSelectedSeverity(selectedSeverity.filter((s) => s !== severity));
     } else {
-      setSelectedSeverity([...selectedSeverity, severity])
+      setSelectedSeverity([...selectedSeverity, severity]);
     }
-  }
+  };
 
   const handleViewAlertDetails = (alertId: string) => {
-    setShowAlertDetails(alertId)
+    setShowAlertDetails(alertId);
 
     // Find the alert
-    const alert = alerts.find((a) => a.id === alertId)
+    const alert = alerts.find((a) => a.id === alertId);
     if (alert) {
       // Center map on alert
-      setMapCenter(alert.coordinates)
-      setMapZoom(15)
+      setMapCenter(alert.coordinates);
+      setMapZoom(15);
     }
-  }
+  };
 
   const handleNavigateToAlert = (alertId: string) => {
     // Find the alert
-    const alert = alerts.find((a) => a.id === alertId)
+    const alert = alerts.find((a) => a.id === alertId);
     if (!alert) {
-      console.error("Alert not found:", alertId)
-      return
+      console.error("Alert not found:", alertId);
+      return;
     }
 
-    console.log("Navigating to alert:", alert)
+    console.log("Navigating to alert:", alert);
 
     // Center map on alert
-    setMapCenter(alert.coordinates)
-    setMapZoom(16)
+    setMapCenter(alert.coordinates);
+    setMapZoom(16);
 
     // Calculate route to alert if user location is available
     if (userLocation) {
       calculateRoute(
         { lat: userLocation.lat, lng: userLocation.lng },
-        { lat: alert.coordinates[0], lng: alert.coordinates[1] },
-      )
-      setNavigationDestination(alert.location)
+        { lat: alert.coordinates[0], lng: alert.coordinates[1] }
+      );
+      setNavigationDestination(alert.location);
     } else {
       addAlert({
         title: "Navigation Error",
-        message: "Your location is required for navigation. Please enable location services.",
+        message:
+          "Your location is required for navigation. Please enable location services.",
         type: "error",
-      })
+      });
     }
-  }
+  };
 
   const handleLocationClick = (areaName: string) => {
-    const data = floodData.find((data) => data.area === areaName)
+    const data = floodData.find((data) => data.area === areaName);
     if (data) {
-      setSelectedLocation(data)
+      setSelectedLocation(data);
 
       // Find the corresponding flood zone to center the map
-      const zone = floodZones.find((zone) => zone.name === areaName)
+      const zone = floodZones.find((zone) => zone.name === areaName);
       if (zone && zone.coordinates.length > 0) {
         // Calculate center of polygon
-        const lat = zone.coordinates.reduce((sum, coord) => sum + coord[0], 0) / zone.coordinates.length
-        const lng = zone.coordinates.reduce((sum, coord) => sum + coord[1], 0) / zone.coordinates.length
-        setMapCenter([lat, lng])
-        setMapZoom(15)
+        const lat =
+          zone.coordinates.reduce((sum, coord) => sum + coord[0], 0) /
+          zone.coordinates.length;
+        const lng =
+          zone.coordinates.reduce((sum, coord) => sum + coord[1], 0) /
+          zone.coordinates.length;
+        setMapCenter([lat, lng]);
+        setMapZoom(15);
       }
     }
-  }
+  };
 
   const handleNavigateViaSafeRoute = (routeName: string, areaName: string) => {
     if (!userLocation) {
       addAlert({
         title: "Navigation Error",
-        message: "Your location is required for navigation. Please enable location services.",
+        message:
+          "Your location is required for navigation. Please enable location services.",
         type: "error",
-      })
-      return
+      });
+      return;
     }
 
     // Find the area data
-    const data = floodData.find((data) => data.area === areaName)
-    if (!data) return
+    const data = floodData.find((data) => data.area === areaName);
+    if (!data) return;
 
     // Find a shelter to navigate to (preferably one outside the flood zone)
-    const shelter = data.nearbyShelters.find((s) => s.isOutsideFloodZone) || data.nearbyShelters[0]
-    if (!shelter) return
+    const shelter =
+      data.nearbyShelters.find((s) => s.isOutsideFloodZone) ||
+      data.nearbyShelters[0];
+    if (!shelter) return;
 
     // Calculate route to the shelter
     calculateRoute(
       { lat: userLocation.lat, lng: userLocation.lng },
-      { lat: shelter.coordinates[0], lng: shelter.coordinates[1] },
-    )
-    setNavigationDestination(`${shelter.name} via ${routeName}`)
-  }
+      { lat: shelter.coordinates[0], lng: shelter.coordinates[1] }
+    );
+    setNavigationDestination(`${shelter.name} via ${routeName}`);
+  };
 
-  const calculateRoute = async (start: { lat: number; lng: number }, end: { lat: number; lng: number }) => {
+  const calculateRoute = async (
+    start: { lat: number; lng: number },
+    end: { lat: number; lng: number }
+  ) => {
     if (!userLocation) {
       addAlert({
         title: "Navigation Error",
-        message: "Your location is required for navigation. Please enable location services.",
+        message:
+          "Your location is required for navigation. Please enable location services.",
         type: "error",
-      })
-      return
+      });
+      return;
     }
 
-    setIsCalculatingRoute(true)
-    setActiveRoute(null)
-    setShowNavigationPanel(false) // Reset navigation panel
+    setIsCalculatingRoute(true);
+    setActiveRoute(null);
+    setShowNavigationPanel(false); // Reset navigation panel
 
     try {
       // Add a small delay to ensure the UI updates
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const route = await findSafeRoute(start, end, floodZones, blockedRoads)
+      const route = await findSafeRoute(start, end, floodZones, blockedRoads);
 
       if (route) {
-        console.log("Route calculated successfully:", route)
-        setActiveRoute(route)
+        console.log("Route calculated successfully:", route);
+        setActiveRoute(route);
 
         // Ensure we show the navigation panel
         setTimeout(() => {
-          setShowNavigationPanel(true)
+          setShowNavigationPanel(true);
 
           // Fit the map to show the entire route
           if (mapRef.current) {
             try {
               const routePoints: L.LatLngTuple[] = route.coordinates.map(
-                (coord) => [coord[1], coord[0]] as L.LatLngTuple,
-              )
-              const bounds = L.latLngBounds(routePoints)
-              mapRef.current.fitBounds(bounds, { padding: [50, 50] })
+                (coord) => [coord[1], coord[0]] as L.LatLngTuple
+              );
+              const bounds = L.latLngBounds(routePoints);
+              mapRef.current.fitBounds(bounds, { padding: [50, 50] });
             } catch (error) {
-              console.error("Error fitting bounds:", error)
+              console.error("Error fitting bounds:", error);
               // If fitting bounds fails, just center on the destination
-              setMapCenter([end.lat, end.lng])
-              setMapZoom(14)
+              setMapCenter([end.lat, end.lng]);
+              setMapZoom(14);
             }
           }
 
           addAlert({
             title: "Route Calculated",
-            message: `Safe route found. Distance: ${formatDistance(route.distance)}, Duration: ${formatDuration(route.duration)}`,
+            message: `Safe route found. Distance: ${formatDistance(
+              route.distance
+            )}, Duration: ${formatDuration(route.duration)}`,
             type: "success",
-          })
-        }, 500)
+          });
+        }, 500);
       } else {
-        console.error("No route returned")
+        console.error("No route returned");
         addAlert({
           title: "Navigation Error",
-          message: "Could not calculate a safe route. Using direct route instead.",
+          message:
+            "Could not calculate a safe route. Using direct route instead.",
           type: "warning",
-        })
+        });
 
         // Create a fallback direct route
         const fallbackRoute = {
           distance: calculateDistance(start.lat, start.lng, end.lat, end.lng),
-          duration: (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) * 3600,
+          duration:
+            (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) *
+            3600,
           steps: [
             {
               instruction: "Navigate to destination",
-              distance: calculateDistance(start.lat, start.lng, end.lat, end.lng),
-              duration: (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) * 3600,
+              distance: calculateDistance(
+                start.lat,
+                start.lng,
+                end.lat,
+                end.lng
+              ),
+              duration:
+                (calculateDistance(start.lat, start.lng, end.lat, end.lng) /
+                  30) *
+                3600,
               coordinates: [end.lng, end.lat] as [number, number],
             },
           ],
@@ -940,28 +1041,33 @@ export default function MapView() {
             [start.lng, start.lat],
             [end.lng, end.lat],
           ] as [number, number][],
-        }
+        };
 
-        setActiveRoute(fallbackRoute)
-        setShowNavigationPanel(true)
+        setActiveRoute(fallbackRoute);
+        setShowNavigationPanel(true);
       }
     } catch (error) {
-      console.error("Error calculating route:", error)
+      console.error("Error calculating route:", error);
       addAlert({
         title: "Navigation Error",
-        message: "An error occurred while calculating the route. Using direct route instead.",
+        message:
+          "An error occurred while calculating the route. Using direct route instead.",
         type: "error",
-      })
+      });
 
       // Create a fallback direct route
       const fallbackRoute = {
         distance: calculateDistance(start.lat, start.lng, end.lat, end.lng),
-        duration: (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) * 3600,
+        duration:
+          (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) *
+          3600,
         steps: [
           {
             instruction: "Navigate to destination",
             distance: calculateDistance(start.lat, start.lng, end.lat, end.lng),
-            duration: (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) * 3600,
+            duration:
+              (calculateDistance(start.lat, start.lng, end.lat, end.lng) / 30) *
+              3600,
             coordinates: [end.lng, end.lat] as [number, number],
           },
         ],
@@ -969,47 +1075,61 @@ export default function MapView() {
           [start.lng, start.lat],
           [end.lng, end.lat],
         ] as [number, number][],
-      }
+      };
 
-      setActiveRoute(fallbackRoute)
-      setShowNavigationPanel(true)
+      setActiveRoute(fallbackRoute);
+      setShowNavigationPanel(true);
     } finally {
-      setIsCalculatingRoute(false)
+      setIsCalculatingRoute(false);
     }
-  }
+  };
 
-  const calculateMultipleRoutes = async (start: { lat: number; lng: number }) => {
+  const calculateMultipleRoutes = async (start: {
+    lat: number;
+    lng: number;
+  }) => {
     if (!userLocation) {
       addAlert({
         title: "Navigation Error",
-        message: "Your location is required for navigation. Please enable location services.",
+        message:
+          "Your location is required for navigation. Please enable location services.",
         type: "error",
-      })
-      return
+      });
+      return;
     }
 
-    setIsCalculatingRoute(true)
-    setActiveRoute(null)
-    setShowNavigationPanel(false)
-    setMultipleRouteOptions(null)
+    setIsCalculatingRoute(true);
+    setActiveRoute(null);
+    setShowNavigationPanel(false);
+    setMultipleRouteOptions(null);
 
     try {
       // Find the flood zone the user is in
       const userFloodZone = floodZones.find((zone) => {
         // Simple point-in-polygon check (this is a simplified version)
         // In a real app, you would use a proper point-in-polygon algorithm
-        const centerLat = zone.coordinates.reduce((sum, coord) => sum + coord[0], 0) / zone.coordinates.length
-        const centerLng = zone.coordinates.reduce((sum, coord) => sum + coord[1], 0) / zone.coordinates.length
-        const distance = calculateDistance(start.lat, start.lng, centerLat, centerLng)
-        return distance < 0.01 // Approximately 1km radius
-      })
+        const centerLat =
+          zone.coordinates.reduce((sum, coord) => sum + coord[0], 0) /
+          zone.coordinates.length;
+        const centerLng =
+          zone.coordinates.reduce((sum, coord) => sum + coord[1], 0) /
+          zone.coordinates.length;
+        const distance = calculateDistance(
+          start.lat,
+          start.lng,
+          centerLat,
+          centerLng
+        );
+        return distance < 0.01; // Approximately 1km radius
+      });
 
       if (!userFloodZone) {
         addAlert({
           title: "Navigation Info",
-          message: "You are not in a flood risk zone. Calculating routes to nearest shelters.",
+          message:
+            "You are not in a flood risk zone. Calculating routes to nearest shelters.",
           type: "info",
-        })
+        });
       }
 
       // Get all shelters, prioritizing those outside flood zones
@@ -1018,30 +1138,30 @@ export default function MapView() {
           data.nearbyShelters.map((shelter) => ({
             ...shelter,
             areaName: data.area,
-          })),
+          }))
         )
         .sort((a, b) => {
           // Sort by outside flood zone first, then by distance
-          if (a.isOutsideFloodZone && !b.isOutsideFloodZone) return -1
-          if (!a.isOutsideFloodZone && b.isOutsideFloodZone) return 1
+          if (a.isOutsideFloodZone && !b.isOutsideFloodZone) return -1;
+          if (!a.isOutsideFloodZone && b.isOutsideFloodZone) return 1;
 
           // Parse the distance strings to get numerical values
-          const distA = Number.parseFloat(a.distance.split(" ")[0])
-          const distB = Number.parseFloat(b.distance.split(" ")[0])
-          return distA - distB
-        })
+          const distA = Number.parseFloat(a.distance.split(" ")[0]);
+          const distB = Number.parseFloat(b.distance.split(" ")[0]);
+          return distA - distB;
+        });
 
       // Take the 3 closest shelters that are preferably outside flood zones
-      const closestShelters = allShelters.slice(0, 3)
+      const closestShelters = allShelters.slice(0, 3);
 
       if (closestShelters.length === 0) {
         addAlert({
           title: "Navigation Error",
           message: "No shelters found in the database.",
           type: "error",
-        })
-        setIsCalculatingRoute(false)
-        return
+        });
+        setIsCalculatingRoute(false);
+        return;
       }
 
       // Calculate routes to each shelter
@@ -1050,54 +1170,59 @@ export default function MapView() {
           start,
           { lat: shelter.coordinates[0], lng: shelter.coordinates[1] },
           floodZones,
-          blockedRoads,
+          blockedRoads
         ).then((route) => ({
           route,
           shelter,
-        })),
-      )
+        }))
+      );
 
-      const routeResults = await Promise.all(routePromises)
+      const routeResults = await Promise.all(routePromises);
 
       // Filter out any failed routes
-      const validRoutes = routeResults.filter((result) => result.route !== null)
+      const validRoutes = routeResults.filter(
+        (result) => result.route !== null
+      );
 
       if (validRoutes.length === 0) {
         // If no routes to shelters, calculate exit route from flood zone
         if (userFloodZone) {
           addAlert({
             title: "Navigation Alert",
-            message: "No direct routes to shelters available. Calculating safest exit route from flood zone.",
+            message:
+              "No direct routes to shelters available. Calculating safest exit route from flood zone.",
             type: "warning",
-          })
+          });
 
           // Find exit point from flood zone
-          const exitPoint = findSafeExitPoint(userFloodZone.coordinates, start)
+          const exitPoint = findSafeExitPoint(userFloodZone.coordinates, start);
 
           const exitRoute = await findSafeRoute(
             start,
             { lat: exitPoint[0], lng: exitPoint[1] },
             floodZones,
-            blockedRoads,
-          )
+            blockedRoads
+          );
 
           if (exitRoute) {
-            setActiveRoute(exitRoute)
-            setShowNavigationPanel(true)
-            setNavigationDestination("Safe exit from flood zone")
+            setActiveRoute(exitRoute);
+            setShowNavigationPanel(true);
+            setNavigationDestination("Safe exit from flood zone");
 
             addAlert({
               title: "Exit Route Calculated",
-              message: `Follow this route to safely exit the flood risk area. Distance: ${formatDistance(exitRoute.distance)}`,
+              message: `Follow this route to safely exit the flood risk area. Distance: ${formatDistance(
+                exitRoute.distance
+              )}`,
               type: "success",
-            })
+            });
           }
         } else {
           addAlert({
             title: "Navigation Error",
             message: "Could not calculate any safe routes to shelters.",
             type: "error",
-          })
+          });
         }
       } else {
         // Show multiple route options
@@ -1105,221 +1230,250 @@ export default function MapView() {
           routes: validRoutes.map((r) => r.route),
           destination: validRoutes[0].shelter.name,
           destinationCoords: validRoutes[0].shelter.coordinates,
-        })
+        });
 
         // Set the first route as active
-        setActiveRoute(validRoutes[0].route)
-        setShowNavigationPanel(true)
-        setNavigationDestination(validRoutes[0].shelter.name)
+        setActiveRoute(validRoutes[0].route);
+        setShowNavigationPanel(true);
+        setNavigationDestination(validRoutes[0].shelter.name);
 
         addAlert({
           title: "Multiple Routes Available",
           message: `${validRoutes.length} safe routes calculated to nearby shelters.`,
           type: "success",
-        })
+        });
       }
     } catch (error) {
-      console.error("Error calculating multiple routes:", error)
+      console.error("Error calculating multiple routes:", error);
       addAlert({
         title: "Navigation Error",
         message: "An error occurred while calculating routes to shelters.",
         type: "error",
-      })
+      });
     } finally {
-      setIsCalculatingRoute(false)
+      setIsCalculatingRoute(false);
     }
-  }
+  };
 
   // Add a function to find a safe exit point from a flood zone
   const findSafeExitPoint = (
     floodZoneCoordinates: [number, number][],
-    userLocation: { lat: number; lng: number },
+    userLocation: { lat: number; lng: number }
   ): [number, number] => {
     // Calculate the center of the flood zone
-    const centerLat = floodZoneCoordinates.reduce((sum, coord) => sum + coord[0], 0) / floodZoneCoordinates.length
-    const centerLng = floodZoneCoordinates.reduce((sum, coord) => sum + coord[1], 0) / floodZoneCoordinates.length
+    const centerLat =
+      floodZoneCoordinates.reduce((sum, coord) => sum + coord[0], 0) /
+      floodZoneCoordinates.length;
+    const centerLng =
+      floodZoneCoordinates.reduce((sum, coord) => sum + coord[1], 0) /
+      floodZoneCoordinates.length;
 
     // Find the edge point of the flood zone that's closest to the user
-    let closestEdgePoint: [number, number] | null = null
-    let minDistance = Number.MAX_VALUE
+    let closestEdgePoint: [number, number] | null = null;
+    let minDistance = Number.MAX_VALUE;
 
     for (let i = 0; i < floodZoneCoordinates.length; i++) {
-      const point = floodZoneCoordinates[i]
-      const distance = calculateDistance(userLocation.lat, userLocation.lng, point[0], point[1])
+      const point = floodZoneCoordinates[i];
+      const distance = calculateDistance(
+        userLocation.lat,
+        userLocation.lng,
+        point[0],
+        point[1]
+      );
 
       if (distance < minDistance) {
-        minDistance = distance
-        closestEdgePoint = point
+        minDistance = distance;
+        closestEdgePoint = point;
       }
     }
 
     if (!closestEdgePoint) {
       // Fallback: move away from center
-      const angle = Math.random() * 2 * Math.PI
-      const distance = 0.01 // ~1km
-      return [userLocation.lat + Math.sin(angle) * distance, userLocation.lng + Math.cos(angle) * distance]
+      const angle = Math.random() * 2 * Math.PI;
+      const distance = 0.01; // ~1km
+      return [
+        userLocation.lat + Math.sin(angle) * distance,
+        userLocation.lng + Math.cos(angle) * distance,
+      ];
     }
 
     // Move slightly beyond the edge point (away from center)
-    const vectorX = closestEdgePoint[0] - centerLat
-    const vectorY = closestEdgePoint[1] - centerLng
-    const magnitude = Math.sqrt(vectorX * vectorX + vectorY * vectorY)
+    const vectorX = closestEdgePoint[0] - centerLat;
+    const vectorY = closestEdgePoint[1] - centerLng;
+    const magnitude = Math.sqrt(vectorX * vectorX + vectorY * vectorY);
 
     // Normalize and extend by 500m (~0.005 degrees)
-    const safeExitLat = closestEdgePoint[0] + (vectorX / magnitude) * 0.005
-    const safeExitLng = closestEdgePoint[1] + (vectorY / magnitude) * 0.005
+    const safeExitLat = closestEdgePoint[0] + (vectorX / magnitude) * 0.005;
+    const safeExitLng = closestEdgePoint[1] + (vectorY / magnitude) * 0.005;
 
-    return [safeExitLat, safeExitLng]
-  }
+    return [safeExitLat, safeExitLng];
+  };
 
   // Update the handleNavigateToShelter function to use the new multiple routes calculation
   const handleNavigateToShelter = (shelter: {
-    name: string
-    coordinates: [number, number]
-    isOutsideFloodZone?: boolean
+    name: string;
+    coordinates: [number, number];
+    isOutsideFloodZone?: boolean;
   }) => {
     if (!userLocation) {
       addAlert({
         title: "Navigation Error",
-        message: "Your location is required for navigation. Please enable location services.",
+        message:
+          "Your location is required for navigation. Please enable location services.",
         type: "error",
-      })
-      return
+      });
+      return;
     }
 
-    console.log("Navigating to shelter:", shelter)
+    console.log("Navigating to shelter:", shelter);
 
     // Center map on shelter first
-    setMapCenter(shelter.coordinates)
-    setMapZoom(15)
+    setMapCenter(shelter.coordinates);
+    setMapZoom(15);
 
     // If the shelter is outside the flood zone, calculate multiple routes
     if (shelter.isOutsideFloodZone) {
       // Calculate multiple routes to different shelters, prioritizing this one
-      calculateMultipleRoutes({ lat: userLocation.lat, lng: userLocation.lng })
-      setNavigationDestination(shelter.name)
+      calculateMultipleRoutes({ lat: userLocation.lat, lng: userLocation.lng });
+      setNavigationDestination(shelter.name);
     } else {
       // For shelters inside flood zones, just calculate a direct route
       calculateRoute(
         { lat: userLocation.lat, lng: userLocation.lng },
-        { lat: shelter.coordinates[0], lng: shelter.coordinates[1] },
-      )
-      setNavigationDestination(shelter.name)
+        { lat: shelter.coordinates[0], lng: shelter.coordinates[1] }
+      );
+      setNavigationDestination(shelter.name);
     }
-  }
+  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "Critical":
-        return "red"
+        return "red";
       case "High":
-        return "orange"
+        return "orange";
       case "Medium":
-        return "yellow"
+        return "yellow";
       case "Low":
-        return "blue"
+        return "blue";
       default:
-        return "blue"
+        return "blue";
     }
-  }
+  };
 
   const getSeverityRadius = (severity: string) => {
     switch (severity) {
       case "Critical":
-        return 2000
+        return 2000;
       case "High":
-        return 1500
+        return 1500;
       case "Medium":
-        return 1000
+        return 1000;
       case "Low":
-        return 1000
+        return 1000;
       default:
-        return 1000
+        return 1000;
     }
-  }
+  };
 
   const getFloodZoneColor = (severity: string) => {
     switch (severity) {
       case "Critical":
-        return "#ff0000" // Red
+        return "#ff0000"; // Red
       case "High":
-        return "#ff6600" // Orange
+        return "#ff6600"; // Orange
       case "Medium":
-        return "#ffcc00" // Yellow
+        return "#ffcc00"; // Yellow
       default:
-        return "#0066ff" // Blue
+        return "#0066ff"; // Blue
     }
-  }
+  };
 
   const getRoadStatusColor = (status: string) => {
     switch (status) {
       case "blocked":
-        return "#FF0000" // Red
+        return "#FF0000"; // Red
       case "damaged":
-        return "#FFA500" // Orange
+        return "#FFA500"; // Orange
       case "demolished":
-        return "#800080" // Purple
+        return "#800080"; // Purple
       default:
-        return "#000000" // Black (fallback)
+        return "#000000"; // Black (fallback)
     }
-  }
+  };
 
   const getSensorStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "#00cc00" // Green
+        return "#00cc00"; // Green
       case "warning":
-        return "#ffcc00" // Yellow
+        return "#ffcc00"; // Yellow
       case "offline":
-        return "#ff0000" // Red
+        return "#ff0000"; // Red
       default:
-        return "#999999" // Gray
+        return "#999999"; // Gray
     }
-  }
+  };
 
   const getRiskBadgeColor = (riskLevel: string) => {
     switch (riskLevel) {
       case "Critical":
-        return "bg-red-100 text-red-600"
+        return "bg-red-100 text-red-600";
       case "High":
-        return "bg-orange-100 text-orange-600"
+        return "bg-orange-100 text-orange-600";
       case "Medium":
-        return "bg-yellow-100 text-yellow-600"
+        return "bg-yellow-100 text-yellow-600";
       case "Low":
-        return "bg-blue-100 text-blue-600"
+        return "bg-blue-100 text-blue-600";
       default:
-        return "bg-gray-100 text-gray-600"
+        return "bg-gray-100 text-gray-600";
     }
-  }
+  };
 
   // Add a helper function to calculate distance between two points
-  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371e3 // Earth radius in meters
-    const φ1 = (lat1 * Math.PI) / 180
-    const φ2 = (lat2 * Math.PI) / 180
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180
+  function calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number {
+    const R = 6371e3; // Earth radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c // Distance in meters
+    return R * c; // Distance in meters
   }
 
   if (isLoading) {
-    return <LoadingSpinner fullScreen />
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
-    <div className={`flex ${fullScreenMap ? "h-screen fixed inset-0 z-50 bg-white" : "h-screen"}`}>
+    <div
+      className={`flex ${
+        fullScreenMap ? "h-screen fixed inset-0 z-50 bg-white" : "h-screen"
+      }`}
+    >
       {/* Left Sidebar - Enhanced with detailed flood information */}
       {!fullScreenMap && (
         <div className="w-96 bg-white border-r overflow-y-auto flex flex-col">
           {selectedLocation ? (
             <div className="p-4">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">{selectedLocation.area}</h2>
-                <button onClick={() => setSelectedLocation(null)} className="p-1 rounded-full hover:bg-gray-100">
+                <h2 className="text-xl font-semibold">
+                  {selectedLocation.area}
+                </h2>
+                <button
+                  onClick={() => setSelectedLocation(null)}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                >
                   <X size={18} />
                 </button>
               </div>
@@ -1327,7 +1481,11 @@ export default function MapView() {
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-medium text-lg">Flood Status</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs ${getRiskBadgeColor(selectedLocation.riskLevel)}`}>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs ${getRiskBadgeColor(
+                      selectedLocation.riskLevel
+                    )}`}
+                  >
                     {selectedLocation.riskLevel} Risk
                   </span>
                 </div>
@@ -1336,20 +1494,32 @@ export default function MapView() {
                   <div className="flex items-center gap-3">
                     <Droplets className="text-blue-500" size={20} />
                     <div>
-                      <p className="text-sm text-gray-600">Current Water Level</p>
-                      <p className="font-medium">{selectedLocation.currentWaterLevel} meters</p>
+                      <p className="text-sm text-gray-600">
+                        Current Water Level
+                      </p>
+                      <p className="font-medium">
+                        {selectedLocation.currentWaterLevel} meters
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <ArrowUp className="text-red-500" size={20} />
                     <div>
-                      <p className="text-sm text-gray-600">AI Predicted Level (Next 6 hrs)</p>
-                      <p className="font-medium">{selectedLocation.predictedWaterLevel} meters</p>
+                      <p className="text-sm text-gray-600">
+                        AI Predicted Level (Next 6 hrs)
+                      </p>
+                      <p className="font-medium">
+                        {selectedLocation.predictedWaterLevel} meters
+                      </p>
                       <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                         <div
                           className="bg-red-500 h-1.5 rounded-full"
-                          style={{ width: `${(selectedLocation.predictedWaterLevel / 4) * 100}%` }}
+                          style={{
+                            width: `${
+                              (selectedLocation.predictedWaterLevel / 4) * 100
+                            }%`,
+                          }}
                         ></div>
                       </div>
                     </div>
@@ -1359,7 +1529,9 @@ export default function MapView() {
                     <BarChart3 className="text-blue-500" size={20} />
                     <div>
                       <p className="text-sm text-gray-600">Rainfall</p>
-                      <p className="font-medium">{selectedLocation.rainfall} cm in last 24 hrs</p>
+                      <p className="font-medium">
+                        {selectedLocation.rainfall} cm in last 24 hrs
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1371,15 +1543,25 @@ export default function MapView() {
                   <ul className="space-y-2">
                     {selectedLocation.safeRoutes.map((route, index) => (
                       <li key={index} className="flex items-start gap-2">
-                        <Route className="text-green-500 mt-0.5 flex-shrink-0" size={16} />
+                        <Route
+                          className="text-green-500 mt-0.5 flex-shrink-0"
+                          size={16}
+                        />
                         <div className="flex flex-col w-full">
                           <span className="text-sm">{route}</span>
                           <button
                             className="text-blue-500 text-xs mt-1 text-left hover:underline"
-                            onClick={() => handleNavigateViaSafeRoute(route, selectedLocation.area)}
+                            onClick={() =>
+                              handleNavigateViaSafeRoute(
+                                route,
+                                selectedLocation.area
+                              )
+                            }
                             disabled={isCalculatingRoute}
                           >
-                            {isCalculatingRoute ? "Calculating route..." : "Navigate from current location"}
+                            {isCalculatingRoute
+                              ? "Calculating route..."
+                              : "Navigate from current location"}
                           </button>
                         </div>
                       </li>
@@ -1394,11 +1576,19 @@ export default function MapView() {
                   {selectedLocation.nearbyShelters.map((shelter, index) => (
                     <div
                       key={index}
-                      className={`rounded-lg p-3 ${shelter.isOutsideFloodZone ? "bg-green-50 border border-green-100" : "bg-gray-50"}`}
+                      className={`rounded-lg p-3 ${
+                        shelter.isOutsideFloodZone
+                          ? "bg-green-50 border border-green-100"
+                          : "bg-gray-50"
+                      }`}
                     >
                       <div className="flex items-start gap-2">
                         <Home
-                          className={`mt-0.5 flex-shrink-0 ${shelter.isOutsideFloodZone ? "text-green-500" : "text-blue-500"}`}
+                          className={`mt-0.5 flex-shrink-0 ${
+                            shelter.isOutsideFloodZone
+                              ? "text-green-500"
+                              : "text-blue-500"
+                          }`}
                           size={16}
                         />
                         <div className="w-full">
@@ -1419,7 +1609,9 @@ export default function MapView() {
                             onClick={() => handleNavigateToShelter(shelter)}
                             disabled={isCalculatingRoute}
                           >
-                            {isCalculatingRoute ? "Calculating route..." : "Navigate to this shelter"}
+                            {isCalculatingRoute
+                              ? "Calculating route..."
+                              : "Navigate to this shelter"}
                           </button>
                         </div>
                       </div>
@@ -1428,7 +1620,9 @@ export default function MapView() {
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500 mt-4">Last updated: {selectedLocation.lastUpdated}</p>
+              <p className="text-xs text-gray-500 mt-4">
+                Last updated: {selectedLocation.lastUpdated}
+              </p>
             </div>
           ) : (
             <div className="p-4">
@@ -1436,7 +1630,9 @@ export default function MapView() {
                 <h2 className="text-lg font-semibold">Chennai Flood Map</h2>
                 <button
                   onClick={handleRefresh}
-                  className={`p-2 rounded-full hover:bg-gray-100 ${refreshing ? "animate-spin" : ""}`}
+                  className={`p-2 rounded-full hover:bg-gray-100 ${
+                    refreshing ? "animate-spin" : ""
+                  }`}
                   disabled={refreshing}
                 >
                   <RefreshCw size={20} />
@@ -1451,7 +1647,10 @@ export default function MapView() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
+                <Search
+                  className="absolute left-3 top-2.5 text-gray-400"
+                  size={20}
+                />
               </div>
 
               <div className="mb-6">
@@ -1463,18 +1662,22 @@ export default function MapView() {
                       className="w-full mt-1 border rounded-lg p-2"
                       value={selectedDistrict}
                       onChange={(e) => {
-                        setSelectedDistrict(e.target.value)
+                        setSelectedDistrict(e.target.value);
                         // If a specific district is selected, find its coordinates and center the map
                         if (e.target.value !== "All Districts") {
-                          const district = MapService.tamilNaduDistricts.find((d) => d.name === e.target.value)
+                          const district = MapService.tamilNaduDistricts.find(
+                            (d) => d.name === e.target.value
+                          );
                           if (district) {
-                            setMapCenter(district.coordinates as [number, number])
-                            setMapZoom(11)
+                            setMapCenter(
+                              district.coordinates as [number, number]
+                            );
+                            setMapZoom(11);
                           }
                         } else {
                           // Reset to Tamil Nadu center
-                          setMapCenter([11.1271, 78.6569])
-                          setMapZoom(7)
+                          setMapCenter([11.1271, 78.6569]);
+                          setMapZoom(7);
                         }
                       }}
                     >
@@ -1495,13 +1698,19 @@ export default function MapView() {
                       {selectedDistrict !== "All Districts" &&
                         MapService.tamilNaduLocalities[
                           selectedDistrict as keyof typeof MapService.tamilNaduLocalities
-                        ]?.map((locality) => <option key={locality}>{locality}</option>)}
+                        ]?.map((locality) => (
+                          <option key={locality}>{locality}</option>
+                        ))}
                       {selectedDistrict === "All Districts" &&
-                        MapService.getAllLocalities().map((locality) => <option key={locality}>{locality}</option>)}
+                        MapService.getAllLocalities().map((locality) => (
+                          <option key={locality}>{locality}</option>
+                        ))}
                     </select>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">Severity Level</label>
+                    <label className="text-sm text-gray-600">
+                      Severity Level
+                    </label>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {["Low", "Medium", "High", "Critical"].map((level) => (
                         <button
@@ -1512,10 +1721,10 @@ export default function MapView() {
                               ? level === "Critical"
                                 ? "bg-red-500 text-white"
                                 : level === "High"
-                                  ? "bg-orange-500 text-white"
-                                  : level === "Medium"
-                                    ? "bg-yellow-500 text-white"
-                                    : "bg-blue-500 text-white"
+                                ? "bg-orange-500 text-white"
+                                : level === "Medium"
+                                ? "bg-yellow-500 text-white"
+                                : "bg-blue-500 text-white"
                               : "bg-gray-100"
                           }`}
                         >
@@ -1532,7 +1741,9 @@ export default function MapView() {
                 <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
                   {floodData.length > 0 ? (
                     floodData
-                      .filter((data) => selectedSeverity.includes(data.riskLevel))
+                      .filter((data) =>
+                        selectedSeverity.includes(data.riskLevel)
+                      )
                       .map((data) => (
                         <div
                           key={data.area}
@@ -1542,9 +1753,15 @@ export default function MapView() {
                           <div className="flex justify-between items-start">
                             <div>
                               <h4 className="font-medium">{data.area}</h4>
-                              <p className="text-sm text-gray-600">Water Level: {data.currentWaterLevel}m</p>
+                              <p className="text-sm text-gray-600">
+                                Water Level: {data.currentWaterLevel}m
+                              </p>
                             </div>
-                            <span className={`px-2 py-1 rounded-full text-xs ${getRiskBadgeColor(data.riskLevel)}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs ${getRiskBadgeColor(
+                                data.riskLevel
+                              )}`}
+                            >
                               {data.riskLevel}
                             </span>
                           </div>
@@ -1553,8 +1770,8 @@ export default function MapView() {
                             <div className="flex gap-2">
                               <button
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleLocationClick(data.area)
+                                  e.stopPropagation();
+                                  handleLocationClick(data.area);
                                 }}
                                 title="View Details"
                                 className="hover:text-blue-600"
@@ -1563,8 +1780,8 @@ export default function MapView() {
                               </button>
                               <button
                                 onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleLocationClick(data.area)
+                                  e.stopPropagation();
+                                  handleLocationClick(data.area);
                                 }}
                                 title="Navigate"
                                 className="hover:text-blue-600"
@@ -1576,7 +1793,9 @@ export default function MapView() {
                         </div>
                       ))
                   ) : (
-                    <div className="text-center text-gray-500 py-4">No flood data available</div>
+                    <div className="text-center text-gray-500 py-4">
+                      No flood data available
+                    </div>
                   )}
                 </div>
               </div>
@@ -1586,21 +1805,26 @@ export default function MapView() {
                 <div className="space-y-3 max-h-[calc(100vh-400px)] overflow-y-auto">
                   {filteredAlerts.length > 0 ? (
                     filteredAlerts.map((alert) => (
-                      <div key={alert.id} className="bg-white border rounded-lg p-3">
+                      <div
+                        key={alert.id}
+                        className="bg-white border rounded-lg p-3"
+                      >
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-medium">{alert.type}</h4>
-                            <p className="text-sm text-gray-600">{alert.location}</p>
+                            <p className="text-sm text-gray-600">
+                              {alert.location}
+                            </p>
                           </div>
                           <span
                             className={`px-2 py-1 rounded-full text-xs ${
                               alert.severity === "Critical"
                                 ? "bg-red-100 text-red-600"
                                 : alert.severity === "High"
-                                  ? "bg-orange-100 text-orange-600"
-                                  : alert.severity === "Medium"
-                                    ? "bg-yellow-100 text-yellow-600"
-                                    : "bg-blue-100 text-blue-600"
+                                ? "bg-orange-100 text-orange-600"
+                                : alert.severity === "Medium"
+                                ? "bg-yellow-100 text-yellow-600"
+                                : "bg-blue-100 text-blue-600"
                             }`}
                           >
                             {alert.severity}
@@ -1628,7 +1852,9 @@ export default function MapView() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center text-gray-500 py-4">No alerts match your filters</div>
+                    <div className="text-center text-gray-500 py-4">
+                      No alerts match your filters
+                    </div>
                   )}
                 </div>
               </div>
@@ -1647,7 +1873,7 @@ export default function MapView() {
             zoomControl={false}
             ref={(map) => {
               if (map) {
-                mapRef.current = map
+                mapRef.current = map;
               }
             }}
           >
@@ -1677,7 +1903,9 @@ export default function MapView() {
                         {alert.location}, {alert.district}
                       </p>
                       <p className="text-sm mb-2">{alert.description}</p>
-                      <p className="text-xs text-gray-500">Updated: {alert.time}</p>
+                      <p className="text-xs text-gray-500">
+                        Updated: {alert.time}
+                      </p>
                       <div className="mt-2 flex justify-end">
                         <button
                           onClick={() => handleViewAlertDetails(alert.id)}
@@ -1719,25 +1947,34 @@ export default function MapView() {
                   }}
                   eventHandlers={{
                     click: () => {
-                      const data = floodData.find((data) => data.area === zone.name)
+                      const data = floodData.find(
+                        (data) => data.area === zone.name
+                      );
                       if (data) {
-                        setSelectedLocation(data)
+                        setSelectedLocation(data);
                       }
                     },
                   }}
                 >
                   <Popup>
                     <div className="p-2 max-w-xs">
-                      <h3 className="font-medium text-lg">Flood Zone: {zone.name}</h3>
+                      <h3 className="font-medium text-lg">
+                        Flood Zone: {zone.name}
+                      </h3>
                       <p className="text-sm mb-1">
-                        Severity: <span className="font-medium">{zone.severity}</span>
+                        Severity:{" "}
+                        <span className="font-medium">{zone.severity}</span>
                       </p>
-                      <p className="text-sm">This area is experiencing flooding and may be dangerous.</p>
+                      <p className="text-sm">
+                        This area is experiencing flooding and may be dangerous.
+                      </p>
                       <button
                         onClick={() => {
-                          const data = floodData.find((data) => data.area === zone.name)
+                          const data = floodData.find(
+                            (data) => data.area === zone.name
+                          );
                           if (data) {
-                            setSelectedLocation(data)
+                            setSelectedLocation(data);
                           }
                         }}
                         className="mt-2 text-blue-500 text-sm hover:underline"
@@ -1760,7 +1997,7 @@ export default function MapView() {
                   ]}
                   icon={
                     new L.Icon({
-                      iconUrl: `public/new road.png`,
+                      iconUrl: newRoad,
                       iconSize: [72, 72],
                       iconAnchor: [16, 16],
                     })
@@ -1770,12 +2007,18 @@ export default function MapView() {
                     <div className="p-2 max-w-xs">
                       <h3 className="font-medium text-lg">Road Status</h3>
                       <p className="text-sm mb-1">
-                        Condition: <span className="font-medium capitalize">{road.status}</span>
+                        Condition:{" "}
+                        <span className="font-medium capitalize">
+                          {road.status}
+                        </span>
                       </p>
                       <p className="text-sm">
-                        {road.status === "blocked" && "This road is currently blocked due to flooding."}
-                        {road.status === "damaged" && "This road is damaged and may be difficult to traverse."}
-                        {road.status === "demolished" && "This road is completely demolished and impassable."}
+                        {road.status === "blocked" &&
+                          "This road is currently blocked due to flooding."}
+                        {road.status === "damaged" &&
+                          "This road is damaged and may be difficult to traverse."}
+                        {road.status === "demolished" &&
+                          "This road is completely demolished and impassable."}
                       </p>
                     </div>
                   </Popup>
@@ -1790,7 +2033,7 @@ export default function MapView() {
                   position={sensor.coordinates}
                   icon={
                     new L.Icon({
-                      iconUrl: "public/tower.png", // Path to your sensor image
+                      iconUrl: tower, // Path to your sensor image
                       iconSize: [42, 42],
                       iconAnchor: [16, 16],
                     })
@@ -1798,9 +2041,14 @@ export default function MapView() {
                 >
                   <Popup>
                     <div className="p-2 max-w-xs">
-                      <h3 className="font-medium text-lg">Sensor {sensor.id}</h3>
+                      <h3 className="font-medium text-lg">
+                        Sensor {sensor.id}
+                      </h3>
                       <p className="text-sm mb-1">
-                        Status: <span className="font-medium capitalize">{sensor.status}</span>
+                        Status:{" "}
+                        <span className="font-medium capitalize">
+                          {sensor.status}
+                        </span>
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <Tower size={16} />
@@ -1819,7 +2067,8 @@ export default function MapView() {
                   new L.Icon({
                     iconUrl:
                       "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-                    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+                    shadowUrl:
+                      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
                     iconSize: [25, 41],
                     iconAnchor: [12, 41],
                     popupAnchor: [1, -34],
@@ -1838,7 +2087,10 @@ export default function MapView() {
             {/* Navigation route if active */}
             {activeRoute && (
               <Polyline
-                positions={activeRoute.coordinates.map((coord) => [coord[1], coord[0]])}
+                positions={activeRoute.coordinates.map((coord) => [
+                  coord[1],
+                  coord[0],
+                ])}
                 pathOptions={{
                   color: "#3388ff",
                   weight: 6,
@@ -1856,7 +2108,7 @@ export default function MapView() {
                     position={shelter.coordinates}
                     icon={
                       new L.Icon({
-                        iconUrl: shelter.isOutsideFloodZone ? "public/shelter.png" : "public/sjf.png", // Different icon for safe shelters
+                        iconUrl: shelter.isOutsideFloodZone ? shelter : sjf, // Different icon for safe shelters
                         iconSize: [32, 32],
                         iconAnchor: [16, 32],
                       })
@@ -1866,14 +2118,25 @@ export default function MapView() {
                       <div className="p-2 max-w-xs">
                         <h3 className="font-medium text-lg">{shelter.name}</h3>
                         <p className="text-sm mb-1">
-                          Capacity: <span className="font-medium">{shelter.capacity}</span>
+                          Capacity:{" "}
+                          <span className="font-medium">
+                            {shelter.capacity}
+                          </span>
                         </p>
-                        <p className="text-sm mb-1">Distance: {shelter.distance}</p>
+                        <p className="text-sm mb-1">
+                          Distance: {shelter.distance}
+                        </p>
                         <p className="text-sm mb-2">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs ${shelter.isOutsideFloodZone ? "bg-green-100 text-green-600" : "bg-yellow-100 text-yellow-600"}`}
+                            className={`px-2 py-1 rounded-full text-xs ${
+                              shelter.isOutsideFloodZone
+                                ? "bg-green-100 text-green-600"
+                                : "bg-yellow-100 text-yellow-600"
+                            }`}
                           >
-                            {shelter.isOutsideFloodZone ? "Outside Flood Zone" : "Inside Flood Zone"}
+                            {shelter.isOutsideFloodZone
+                              ? "Outside Flood Zone"
+                              : "Inside Flood Zone"}
                           </span>
                         </p>
                         <button
@@ -1885,7 +2148,7 @@ export default function MapView() {
                       </div>
                     </Popup>
                   </Marker>
-                )),
+                ))
               )}
           </MapContainer>
         </div>
@@ -1901,9 +2164,13 @@ export default function MapView() {
           </button>
 
           <button
-            onClick={() => setMapType(mapType === "street" ? "satellite" : "street")}
+            onClick={() =>
+              setMapType(mapType === "street" ? "satellite" : "street")
+            }
             className="bg-white p-2 rounded-lg shadow-md hover:bg-gray-100"
-            title={`Switch to ${mapType === "street" ? "Satellite" : "Street"} View`}
+            title={`Switch to ${
+              mapType === "street" ? "Satellite" : "Street"
+            } View`}
           >
             <MapIcon size={20} />
           </button>
@@ -1919,8 +2186,8 @@ export default function MapView() {
           {userLocation && (
             <button
               onClick={() => {
-                setMapCenter([userLocation.lat, userLocation.lng])
-                setMapZoom(15)
+                setMapCenter([userLocation.lat, userLocation.lng]);
+                setMapZoom(15);
               }}
               className="bg-white p-2 rounded-lg shadow-md hover:bg-gray-100"
               title="Go to My Location"
@@ -1931,7 +2198,12 @@ export default function MapView() {
 
           {userLocation && (
             <button
-              onClick={() => calculateMultipleRoutes({ lat: userLocation.lat, lng: userLocation.lng })}
+              onClick={() =>
+                calculateMultipleRoutes({
+                  lat: userLocation.lat,
+                  lng: userLocation.lng,
+                })
+              }
               className="bg-white p-2 rounded-lg shadow-md hover:bg-gray-100"
               title="Find Safe Shelters"
               disabled={isCalculatingRoute}
@@ -2008,19 +2280,23 @@ export default function MapView() {
                   <span>Medium Risk Flood Zone</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src="/blocked-road-blocked.png" alt="Blocked Road" className="w-4 h-4" />
+                  <img
+                    src={blockedRoad}
+                    alt="Blocked Road"
+                    className="w-4 h-4"
+                  />
                   <span>Blocked Road</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src="/tower.png" alt="Sensor" className="w-4 h-4" />
+                  <img src={tower} alt="Sensor" className="w-4 h-4" />
                   <span>Sensor Location</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src="/shelter.png" alt="Shelter" className="w-4 h-4" />
+                  <img src={shelter} alt="Shelter" className="w-4 h-4" />
                   <span>Shelter Location (In Flood Zone)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <img src="/shelter-safe.png" alt="Safe Shelter" className="w-4 h-4" />
+                  <img src={shelter} alt="Safe Shelter" className="w-4 h-4" />
                   <span>Safe Shelter Location (Outside Flood Zone)</span>
                 </div>
               </div>
@@ -2035,7 +2311,9 @@ export default function MapView() {
               <div className="flex justify-between items-center p-3 border-b">
                 <h3 className="text-lg font-semibold flex items-center">
                   <Navigation2 className="mr-2" size={20} />
-                  {navigationDestination ? `To: ${navigationDestination}` : "Navigation"}
+                  {navigationDestination
+                    ? `To: ${navigationDestination}`
+                    : "Navigation"}
                 </h3>
                 <div className="flex gap-2">
                   <button
@@ -2047,9 +2325,9 @@ export default function MapView() {
                   </button>
                   <button
                     onClick={() => {
-                      setShowNavigationPanel(false)
-                      setActiveRoute(null)
-                      setNavigationDestination(null)
+                      setShowNavigationPanel(false);
+                      setActiveRoute(null);
+                      setNavigationDestination(null);
                     }}
                     className="p-1 rounded-full hover:bg-gray-100"
                     title="Close"
@@ -2063,11 +2341,15 @@ export default function MapView() {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-sm text-gray-600">Total Distance</p>
-                    <p className="font-medium">{formatDistance(activeRoute.distance)}</p>
+                    <p className="font-medium">
+                      {formatDistance(activeRoute.distance)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Estimated Time</p>
-                    <p className="font-medium">{formatDuration(activeRoute.duration)}</p>
+                    <p className="font-medium">
+                      {formatDuration(activeRoute.duration)}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -2075,7 +2357,10 @@ export default function MapView() {
               <div className="max-h-[40vh] overflow-y-auto">
                 <div className="space-y-1 p-2">
                   {activeRoute.steps.map((step, index) => (
-                    <div key={index} className="flex items-start p-2 border-b last:border-b-0">
+                    <div
+                      key={index}
+                      className="flex items-start p-2 border-b last:border-b-0"
+                    >
                       <div className="bg-blue-100 p-2 rounded-full mr-3">
                         {step.instruction.includes("right") ? (
                           <ArrowRight size={18} />
@@ -2121,7 +2406,10 @@ export default function MapView() {
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white p-4 rounded-lg shadow-md max-w-md">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-medium">Multiple Safe Routes Available</h3>
-              <button onClick={() => setMultipleRouteOptions(null)} className="p-1 rounded-full hover:bg-gray-100">
+              <button
+                onClick={() => setMultipleRouteOptions(null)}
+                className="p-1 rounded-full hover:bg-gray-100"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -2130,10 +2418,14 @@ export default function MapView() {
               {multipleRouteOptions.routes.map((route, index) => (
                 <div
                   key={index}
-                  className={`p-3 rounded-lg cursor-pointer ${activeRoute === route ? "bg-blue-50 border border-blue-200" : "bg-gray-50 hover:bg-gray-100"}`}
+                  className={`p-3 rounded-lg cursor-pointer ${
+                    activeRoute === route
+                      ? "bg-blue-50 border border-blue-200"
+                      : "bg-gray-50 hover:bg-gray-100"
+                  }`}
                   onClick={() => {
-                    setActiveRoute(route)
-                    setShowNavigationPanel(true)
+                    setActiveRoute(route);
+                    setShowNavigationPanel(true);
                   }}
                 >
                   <div className="flex justify-between items-center">
@@ -2164,7 +2456,9 @@ export default function MapView() {
         {filteredAlerts.length > 0 && fullScreenMap && (
           <div className="absolute bottom-4 left-4 z-10 bg-white p-2 rounded-full shadow-md flex items-center gap-2">
             <AlertTriangle size={20} className="text-red-500" />
-            <span className="font-medium">{filteredAlerts.length} Active Alerts</span>
+            <span className="font-medium">
+              {filteredAlerts.length} Active Alerts
+            </span>
           </div>
         )}
 
@@ -2193,7 +2487,10 @@ export default function MapView() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold">Alert Details</h3>
-              <button onClick={() => setShowAlertDetails(null)} className="p-1 rounded-full hover:bg-gray-100">
+              <button
+                onClick={() => setShowAlertDetails(null)}
+                className="p-1 rounded-full hover:bg-gray-100"
+              >
                 <X size={20} />
               </button>
             </div>
@@ -2201,12 +2498,18 @@ export default function MapView() {
             {alerts.find((a) => a.id === showAlertDetails) && (
               <div className="space-y-4">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500">Alert Type</h4>
-                  <p className="font-medium">{alerts.find((a) => a.id === showAlertDetails)?.type}</p>
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Alert Type
+                  </h4>
+                  <p className="font-medium">
+                    {alerts.find((a) => a.id === showAlertDetails)?.type}
+                  </p>
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500">Location</h4>
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Location
+                  </h4>
                   <p>
                     {alerts.find((a) => a.id === showAlertDetails)?.location},{" "}
                     {alerts.find((a) => a.id === showAlertDetails)?.district}
@@ -2214,14 +2517,18 @@ export default function MapView() {
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500">Severity</h4>
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Severity
+                  </h4>
                   <p
                     className={`${
-                      alerts.find((a) => a.id === showAlertDetails)?.severity === "Critical"
+                      alerts.find((a) => a.id === showAlertDetails)
+                        ?.severity === "Critical"
                         ? "text-red-600"
-                        : alerts.find((a) => a.id === showAlertDetails)?.severity === "High"
-                          ? "text-orange-600"
-                          : "text-yellow-600"
+                        : alerts.find((a) => a.id === showAlertDetails)
+                            ?.severity === "High"
+                        ? "text-orange-600"
+                        : "text-yellow-600"
                     }`}
                   >
                     {alerts.find((a) => a.id === showAlertDetails)?.severity}
@@ -2229,8 +2536,12 @@ export default function MapView() {
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-medium text-gray-500">Description</h4>
-                  <p>{alerts.find((a) => a.id === showAlertDetails)?.description}</p>
+                  <h4 className="text-sm font-medium text-gray-500">
+                    Description
+                  </h4>
+                  <p>
+                    {alerts.find((a) => a.id === showAlertDetails)?.description}
+                  </p>
                 </div>
 
                 <div>
@@ -2242,15 +2553,17 @@ export default function MapView() {
                   <button
                     onClick={() => {
                       // Send notification about this alert
-                      const alert = alerts.find((a) => a.id === showAlertDetails)
+                      const alert = alerts.find(
+                        (a) => a.id === showAlertDetails
+                      );
                       if (alert) {
                         addAlert({
                           title: "Alert Shared",
                           message: `You've shared information about ${alert.type} in ${alert.location}`,
                           type: "info",
-                        })
+                        });
                       }
-                      setShowAlertDetails(null)
+                      setShowAlertDetails(null);
                     }}
                     className="px-4 py-2 border rounded-lg"
                   >
@@ -2258,8 +2571,8 @@ export default function MapView() {
                   </button>
                   <button
                     onClick={() => {
-                      handleNavigateToAlert(showAlertDetails)
-                      setShowAlertDetails(null)
+                      handleNavigateToAlert(showAlertDetails);
+                      setShowAlertDetails(null);
                     }}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg flex items-center gap-2"
                   >
@@ -2273,6 +2586,5 @@ export default function MapView() {
         </div>
       )}
     </div>
-  )
+  );
 }
-
